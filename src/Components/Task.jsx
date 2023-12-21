@@ -1,7 +1,8 @@
 import { DndContext, closestCenter } from "@dnd-kit/core";
 import { useEffect, useState } from "react";
 import { FaRegPlusSquare, FaCalendarAlt, FaHourglassHalf, FaCheckCircle } from "react-icons/fa";
-
+import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd"
+import StoreList from "./StoreList";
 
 const DATA = [
   {
@@ -39,31 +40,53 @@ const DATA = [
 
 
 const Task = () => {
-  
+
   const [stores, setStores] = useState(DATA);
+   
+  console.log('Stores now', stores);
+  
+  const handleDragDrop = (results) => {
+    const {source,destination, type} = results;
+   console.log('result is ',results);
+   if(!destination) return;
+   if(source.droppableId === destination.droppableId && source.index === destination.index) return;
 
-  const [tasks1, setTasks1] = useState([]);
-  const [tasks2, setTasks2] = useState([]);
-  const [tasks3, setTasks3] = useState([]);
 
+   if(type === 'group'){
+    const reorderedStores = [...stores];
+    const sourceIndex = source.index;
+    const destinationIndex = destination.index;
 
-  useEffect(() => {
-    const fetchData = async (filePath, setTasks) => {
-      try {
-        const response = await fetch(filePath);
-        const data = await response.json();
-        setTasks(data);
-      } catch (error) {
-        console.error(`Error fetching data from ${filePath}:`, error);
-      }
-    };
+    const [removedStore] = reorderedStores.splice(sourceIndex, 1);
+    reorderedStores.splice(destinationIndex, 0, removedStore);
 
-    fetchData('/task1.json', setTasks1);
-    fetchData('/task2.json', setTasks2);
-    fetchData('/task3.json', setTasks3);
-  }, []);
+    return setStores(reorderedStores);
+   }
 
-  console.log(tasks1, tasks2, tasks3);
+   console.log('inner source', source, destination);
+  
+
+   const storeSourceIndex = stores.findIndex((store) => store.id === source.droppableId);
+   const storeDestinationIndex = stores.findIndex((store) => store.id === destination.droppableId);
+   const newSourceItems = [...stores[storeSourceIndex].items]
+   const newDestinationItems = source.droppableId !== destination.droppableId ? [...stores[storeDestinationIndex].items] : newSourceItems;
+   const [deletedItem] = newSourceItems.splice(source.index,1);
+   newDestinationItems.splice(destination.index,0,deletedItem);
+
+   const newStores = [...stores]
+
+   newStores[storeSourceIndex] = {
+    ...stores[storeSourceIndex],
+    items: newSourceItems
+   }
+
+   newStores[storeDestinationIndex] = {
+    ...stores[storeDestinationIndex],
+    items: newDestinationItems
+   }
+
+   setStores(newStores);
+  }
 
   const onDragEnd = e => {
     console.log('On Drag End', e);
@@ -77,55 +100,44 @@ const Task = () => {
         <button className="btn btn-neutral"> <FaRegPlusSquare /> Add Task</button>
       </div>
 
-      <div className="flex justify-evenly items-center">
-        <div>
-          <h1 className="text-xl font-bold flex justify-center gap-1 items-center"> <FaCalendarAlt /> To-Do</h1>
-          <ul>
-            <DndContext collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-
-              {tasks1.map((task) => (
-                <li key={task.id}>{task.title}</li>
-              ))}
-            </DndContext>
-
-          </ul>
-        </div>
-        <div>
-          <h1 className="text-xl font-bold flex justify-center gap-1 items-center"> <FaHourglassHalf /> Ongoing</h1>
-          <ul>
-            {tasks2.map((task) => (
-              <li key={task.id}>{task.title}</li>
-            ))}
-          </ul>
-        </div>
-        <div>
-          <h1 className="text-xl font-bold flex justify-center gap-1 items-center"> <FaCheckCircle /> Completed</h1>
-          <ul>
-            {tasks3.map((task) => (
-              <li key={task.id}>{task.title}</li>
-            ))}
-          </ul>
-        </div>
-
-      </div>
+      
 
       <div>
         <div className="layout__wrapper">
-          <div className="card">
-            <div className="header">
-                <h1 className="font-bold text-lg">Shopping list</h1>
-            </div>
-            <div>
-              {
-              
-              stores.map(store => {(
-                <div>
 
-                </div>
-              )})
-              
-              }
-            </div>
+          <div className="card">
+            <DragDropContext onDragEnd={handleDragDrop}>
+              <div className="header">
+                <h1 className="font-bold text-lg">Shopping list</h1>
+              </div>
+              <Droppable droppableId="ROOT" type="group">
+                {
+                  (provided) => (
+
+                    <div {...provided.droppableProps} ref={provided.innerRef}>
+
+                      {
+                        stores.map((store, index) => (
+                          <Draggable key={store.id} draggableId={store.id} index={index}>
+                            {
+                              (provided) => (
+                         
+                                  <div className="" {...provided.dragHandleProps} {...provided.draggableProps} ref={provided.innerRef}>
+                                    <StoreList {...store}/>
+                                  </div>
+                           
+                              )
+                            }
+                          </Draggable>
+                        ))
+                      }
+                      {provided.placeholder}
+                    </div>
+                    
+                  )
+                }
+              </Droppable>
+            </DragDropContext>
           </div>
         </div>
       </div>
